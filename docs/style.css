@@ -1,3 +1,35 @@
+:root {
+    /* Light theme (default) */
+    --bg-primary: #f9f9f9;
+    --bg-secondary: white;
+    --text-primary: #333;
+    --text-secondary: #666;
+    --border-color: #eee;
+    --gradient-1: #667eea;
+    --gradient-2: #764ba2;
+    --shadow: rgba(0, 0, 0, 0.1);
+    --link-color: #667eea;
+    --link-hover: #764ba2;
+    --button-bg: rgba(255, 255, 255, 0.15);
+    --button-bg-hover: rgba(255, 255, 255, 0.25);
+}
+
+/* Dark theme */
+html.dark-mode {
+    --bg-primary: #1a1a1a;
+    --bg-secondary: #2d2d2d;
+    --text-primary: #e5e5e5;
+    --text-secondary: #aaa;
+    --border-color: #444;
+    --gradient-1: #667eea;
+    --gradient-2: #764ba2;
+    --shadow: rgba(0, 0, 0, 0.3);
+    --link-color: #8fa3ff;
+    --link-hover: #b0c4ff;
+    --button-bg: rgba(0, 0, 0, 0.2);
+    --button-bg-hover: rgba(0, 0, 0, 0.4);
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -7,15 +39,23 @@
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
     line-height: 1.6;
-    color: #333;
-    background-color: #f9f9f9;
+    color: var(--text-primary);
+    background-color: var(--bg-primary);
+    transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, var(--gradient-1) 0%, var(--gradient-2) 100%);
     color: white;
     padding: 2rem 1.5rem;
-    text-align: center;
+}
+
+header > div {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 900px;
+    margin: 0 auto;
 }
 
 header h1 {
@@ -31,6 +71,28 @@ header h1 a:hover {
     text-decoration: underline;
 }
 
+header p {
+    text-align: center;
+    opacity: 0.95;
+    margin-top: 0.5rem;
+}
+
+#theme-toggle {
+    background-color: var(--button-bg);
+    border: 2px solid white;
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+}
+
+#theme-toggle:hover {
+    background-color: var(--button-bg-hover);
+}
+
 main {
     max-width: 900px;
     margin: 2rem auto;
@@ -38,21 +100,22 @@ main {
 }
 
 section {
-    background: white;
+    background: var(--bg-secondary);
     padding: 2rem;
     margin-bottom: 2rem;
     border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 4px var(--shadow);
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 section h2 {
-    color: #667eea;
+    color: var(--link-color);
     margin-bottom: 1.5rem;
     font-size: 1.8rem;
 }
 
 section h3 {
-    color: #764ba2;
+    color: var(--link-hover);
     margin-top: 1.5rem;
     margin-bottom: 0.8rem;
     font-size: 1.3rem;
@@ -61,6 +124,7 @@ section h3 {
 section p {
     margin-bottom: 1rem;
     font-size: 1rem;
+    color: var(--text-primary);
 }
 
 section ul {
@@ -71,24 +135,28 @@ section ul {
 
 section li {
     margin-bottom: 0.5rem;
+    color: var(--text-primary);
 }
 
 section a {
-    color: #667eea;
+    color: var(--link-color);
     text-decoration: none;
     font-weight: 500;
+    transition: color 0.3s ease;
 }
 
 section a:hover {
+    color: var(--link-hover);
     text-decoration: underline;
 }
 
 footer {
     text-align: center;
     padding: 2rem;
-    color: #999;
+    color: var(--text-secondary);
     font-size: 0.9rem;
-    border-top: 1px solid #eee;
+    border-top: 1px solid var(--border-color);
+    transition: border-color 0.3s ease, color 0.3s ease;
 }
 
 @media (max-width: 768px) {
@@ -96,8 +164,17 @@ footer {
         padding: 1.5rem 1rem;
     }
 
+    header > div {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
     header h1 {
         font-size: 1.5rem;
+    }
+
+    #theme-toggle {
+        width: 100%;
     }
 
     section {
