@@ -103,7 +103,7 @@
             background: var(--bg-primary);
             box-shadow: inset 0 0 0 2px var(--border-color);
             color: var(--text-secondary);
-            font-size: clamp(0.55rem, 1.3vw, 1rem);
+            font-size: clamp(0.7rem, 1.7vw, 1.3rem);
             font-weight: 700;
             cursor: pointer;
             display: flex;
@@ -116,6 +116,8 @@
             touch-action: manipulation;
         }
 
+        .bulb.three-digit { font-size: clamp(0.55rem, 1.25vw, 0.95rem); } /* keep "100" fitting */
+
         .bulb.on {
             background: radial-gradient(circle at 35% 30%, #fff6c2 0%, #ffd34d 55%, #f5a623 100%);
             box-shadow: inset 0 0 0 2px #f5a623, 0 0 10px 2px rgba(245, 166, 35, 0.6);
@@ -127,9 +129,17 @@
             z-index: 1;
         }
 
-        /* bulbs the current person flips — tap these */
-        .bulb.target {
-            filter: drop-shadow(0 0 2px var(--link-color)) drop-shadow(0 0 4px var(--link-color));
+        /* wrong tap (not one of this person's bulbs): a red shake */
+        .bulb.wrong {
+            animation: shake 0.4s ease;
+            filter: drop-shadow(0 0 4px #e23b3b) drop-shadow(0 0 3px #e23b3b);
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20% { transform: translateX(-3px); }
+            40% { transform: translateX(3px); }
+            60% { transform: translateX(-2px); }
+            80% { transform: translateX(2px); }
         }
 
         .bulb.survivor {
@@ -272,7 +282,12 @@
     <script>
         const N = 100;
         const UNLOCK_TAPS = 8;  // taps on a person's own bulbs before the robot wakes
-        const FINISH_MS = 500;  // the awake robot flips one bulb every 0.5s
+        // The awake robot flips one bulb at a time. The per-bulb delay adapts to how
+        // many are left: ~0.5s for small rounds (savor each), faster when there are
+        // many to flip, so even Person 1 (92 bulbs) finishes in a few seconds.
+        function finishDelay(remaining) {
+            return Math.max(60, Math.min(500, Math.round(3500 / remaining)));
+        }
 
         const ROBOT_SLEEP = '🤖 💤';
         const ROBOT_AWAKE = '🤖 ⚡ Tap me!';
@@ -294,7 +309,7 @@
         // Build the grid once
         for (let i = 1; i <= N; i++) {
             const b = document.createElement('button');
-            b.className = 'bulb';
+            b.className = i >= 100 ? 'bulb three-digit' : 'bulb';
             b.textContent = i;
             b.setAttribute('aria-label', 'Bulb ' + i + ', off');
             b.addEventListener('click', () => onBulbClick(i));
@@ -318,7 +333,15 @@
             bulbs[i - 1].setAttribute('aria-label', 'Bulb ' + i + (state[i - 1] ? ', on' : ', off'));
         }
         function clearMarks() {
-            bulbs.forEach(b => b.classList.remove('target', 'flipping', 'survivor'));
+            bulbs.forEach(b => b.classList.remove('flipping', 'survivor', 'wrong'));
+        }
+
+        function flashWrong(i) {
+            const b = bulbs[i - 1];
+            b.classList.remove('wrong');
+            void b.offsetWidth;            // restart the shake even on rapid re-taps
+            b.classList.add('wrong');
+            setTimeout(() => b.classList.remove('wrong'), 450);
         }
 
         // ---- guided play: you are each person ----
@@ -351,7 +374,6 @@
             multiples = multiplesOf(currentPerson);
             threshold = Math.min(UNLOCK_TAPS, multiples.length);
             clearMarks();
-            multiples.forEach(m => bulbs[m - 1].classList.add('target')); // show this person's bulbs
             setRobot('sleeping');
             updateGuidedStatus();
         }
@@ -367,7 +389,7 @@
 
         function updateGuidedStatus(hint) {
             let msg = '<strong>Person ' + currentPerson + '</strong> ' + personFlips() +
-                ': ' + previewList() + '. Tap the highlighted bulbs.';
+                ': ' + previewList() + '. Find and tap them!';
             if (flipped.size < threshold) {
                 msg += ' &nbsp;<span class="count">Tapped ' + flipped.size + ' / ' + threshold + '</span>';
             } else {
@@ -388,14 +410,14 @@
             if (animating) return;                    // robot is busy finishing
             if (currentPerson > N) return;            // game already finished
             if (i % currentPerson !== 0) {            // not one of this person's bulbs
-                updateGuidedStatus('Person ' + currentPerson + ' only flips multiples of ' + currentPerson + '.');
+                flashWrong(i);
+                updateGuidedStatus('❌ ' + i + ' is not a multiple of ' + currentPerson + ' — try another!');
                 return;
             }
             if (flipped.has(i)) return;               // already flipped this round
             state[i - 1] = !state[i - 1];
             flipped.add(i);
             paintBulb(i);
-            bulbs[i - 1].classList.remove('target');
             bulbs[i - 1].classList.add('flipping');
             if (flipped.size >= threshold && document.getElementById('btn-finish').disabled) setRobot('awake');
             updateGuidedStatus();
@@ -405,6 +427,7 @@
             const fb = document.getElementById('btn-finish');
             if (fb.disabled || animating) return;     // only the awake robot acts
             const remaining = multiples.filter(m => !flipped.has(m));
+            const delay = finishDelay(remaining.length || 1);
             animating = true;
             setRobot('working');
             let idx = 0;
@@ -425,7 +448,7 @@
                 statusEl.innerHTML = '🤖 Robot is flipping the rest of <strong>Person ' +
                     currentPerson + '</strong>’s bulbs… <span class="count">' +
                     idx + ' / ' + remaining.length + '</span>';
-                animTimer = setTimeout(step, FINISH_MS);
+                animTimer = setTimeout(step, delay);
             })();
         }
 
