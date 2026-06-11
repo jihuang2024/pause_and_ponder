@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sessions - Pause and Ponder</title>
+    <link rel="stylesheet" href="../style.css">
+    <style>
+        .session-list { list-style: none; margin: 0; padding: 0; }
+
+        .session-card {
+            display: block;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1.2rem 1.4rem;
+            margin-bottom: 1rem;
+            text-decoration: none;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.1s ease;
+        }
+
+        .session-card:hover {
+            border-color: var(--link-color);
+            box-shadow: 0 2px 8px var(--shadow);
+            text-decoration: none;
+        }
+
+        .session-card:active { transform: scale(0.995); }
+
+        .session-date {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-weight: 600;
+            letter-spacing: 0.02em;
+        }
+
+        .session-title {
+            font-size: 1.3rem;
+            color: var(--link-color);
+            font-weight: 700;
+            margin: 0.15rem 0 0.4rem;
+        }
+
+        .session-desc { color: var(--text-primary); margin: 0; font-size: 0.98rem; }
+
+        .badge {
+            display: inline-block;
+            background: var(--link-color);
+            color: white;
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            padding: 0.15rem 0.55rem;
+            border-radius: 999px;
+            margin-left: 0.5rem;
+            vertical-align: middle;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div>
+            <h1><a href="../index.html">Pause and Ponder</a></h1>
+            <button id="theme-toggle" onclick="toggleTheme()">🌙 Dark</button>
+        </div>
+    </header>
+
+    <main>
+        <section>
+            <h2>Sessions</h2>
+            <p>
+                Every week we explore one mathematical idea together. Here are the sessions, newest first.
+                Each one stays here forever, so you can revisit any of them any time.
+            </p>
+
+            <ul class="session-list">
+                <!-- Newest session first. To add a new week: copy a card, update the date,
+                     title, description, and link to the new sessions/<date>-<slug>/ folder. -->
+                <li>
+                    <a class="session-card" href="2026-06-15-light-bulbs/index.html">
+                        <div class="session-date">Week of June 15, 2026<span class="badge">This week</span></div>
+                        <div class="session-title">Which Bulbs Stay Lit?</div>
+                        <p class="session-desc">
+                            100 light bulbs, 100 people, and a surprising pattern in which bulbs end up glowing.
+                            An interactive, hands-on puzzle about divisors and perfect squares.
+                        </p>
+                    </a>
+                </li>
+                <li>
+                    <a class="session-card" href="../pages/this-weeks-question.html">
+                        <div class="session-date">Week of June 8, 2026</div>
+                        <div class="session-title">Prime Numbers</div>
+                        <p class="session-desc">
+                            Testing whether numbers are prime, hunting for primes between 200 and 300,
+                            twin primes, and wondering whether the primes ever run out.
+                        </p>
+                    </a>
+                </li>
+            </ul>
+        </section>
+
+        <section>
+            <p><a href="../index.html">← Back to Home</a></p>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2026 Pause and Ponder</p>
+    </footer>
+
+    <script src="../script.js"></script>
+</body>
+</html>

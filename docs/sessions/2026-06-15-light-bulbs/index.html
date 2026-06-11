@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Which Bulbs Stay Lit? - Pause and Ponder</title>
+    <link rel="stylesheet" href="../../style.css">
+    <style>
+        /* ---- Game-specific styles (scoped to this page) ---- */
+        .game-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            align-items: center;
+            margin: 1rem 0 1.5rem;
+        }
+
+        .game-btn {
+            background: linear-gradient(135deg, var(--gradient-1) 0%, var(--gradient-2) 100%);
+            color: white;
+            border: none;
+            padding: 0.7rem 1.2rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 1rem;
+            transition: transform 0.1s ease, opacity 0.2s ease;
+            -webkit-user-select: none;
+            user-select: none;
+            touch-action: manipulation;
+        }
+
+        .game-btn:active { transform: scale(0.96); }
+        .game-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        .game-btn.secondary {
+            background: var(--bg-primary);
+            color: var(--link-color);
+            border: 2px solid var(--link-color);
+        }
+
+        .mode-switch {
+            display: inline-flex;
+            border: 2px solid var(--link-color);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .mode-switch button {
+            background: var(--bg-primary);
+            color: var(--link-color);
+            border: none;
+            padding: 0.6rem 1.1rem;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.95rem;
+            touch-action: manipulation;
+        }
+
+        .mode-switch button.active {
+            background: var(--link-color);
+            color: white;
+        }
+
+        .speed-control {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .status {
+            background: var(--bg-primary);
+            border-radius: 6px;
+            padding: 0.9rem 1.1rem;
+            margin-bottom: 1.25rem;
+            min-height: 3.2rem;
+            font-size: 1rem;
+            line-height: 1.5;
+            border-left: 4px solid var(--link-color);
+        }
+
+        .status .count { font-weight: 700; color: var(--link-color); }
+
+        .bulb-grid {
+            display: grid;
+            grid-template-columns: repeat(20, 1fr);
+            gap: clamp(2px, 0.5vw, 7px);
+            margin: 0 auto;
+            min-width: 560px; /* keep bulbs legible; wrapper scrolls on tiny screens */
+        }
+
+        .bulb {
+            aspect-ratio: 1 / 1;
+            border: none;
+            border-radius: 50%;
+            background: var(--bg-primary);
+            box-shadow: inset 0 0 0 2px var(--border-color);
+            color: var(--text-secondary);
+            font-size: clamp(0.55rem, 1.4vw, 0.95rem);
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.15s ease, box-shadow 0.15s ease, color 0.15s ease;
+            -webkit-user-select: none;
+            user-select: none;
+            touch-action: manipulation;
+            padding: 0;
+        }
+
+        .bulb.on {
+            background: radial-gradient(circle at 35% 30%, #fff6c2 0%, #ffd34d 55%, #f5a623 100%);
+            box-shadow: inset 0 0 0 2px #f5a623, 0 0 10px 2px rgba(245, 166, 35, 0.6);
+            color: #6b4a00;
+        }
+
+        .bulb.flipping {
+            outline: 3px solid var(--link-hover);
+            outline-offset: 1px;
+            z-index: 1;
+        }
+
+        .bulb.survivor {
+            background: radial-gradient(circle at 35% 30%, #d6ffd6 0%, #7be07b 55%, #2eb82e 100%);
+            box-shadow: inset 0 0 0 2px #2eb82e, 0 0 14px 3px rgba(46, 184, 46, 0.7);
+            color: #064d06;
+            animation: pop 0.4s ease;
+        }
+
+        @keyframes pop {
+            0% { transform: scale(0.6); }
+            60% { transform: scale(1.12); }
+            100% { transform: scale(1); }
+        }
+
+        .grid-wrap { max-width: 100%; margin: 0 auto; overflow-x: auto; }
+
+        details.explain {
+            margin-top: 2rem;
+            background: var(--bg-primary);
+            border-radius: 6px;
+            padding: 1rem 1.2rem;
+        }
+
+        details.explain summary {
+            cursor: pointer;
+            font-weight: 600;
+            color: var(--link-color);
+            font-size: 1.1rem;
+        }
+
+        details.explain[open] summary { margin-bottom: 0.8rem; }
+
+        .squares { font-family: monospace; font-weight: 700; color: var(--link-hover); }
+
+        @media (max-width: 768px) {
+            .game-controls { gap: 0.5rem; }
+            .game-btn { padding: 0.6rem 0.9rem; font-size: 0.9rem; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div>
+            <h1><a href="../../index.html">Pause and Ponder</a></h1>
+            <button id="theme-toggle" onclick="toggleTheme()">🌙 Dark</button>
+        </div>
+    </header>
+
+    <main>
+        <section>
+            <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 0.3rem;">Session · Week of June 15, 2026</p>
+            <h2>Which Bulbs Stay Lit?</h2>
+            <p>
+                There are <strong>100 light bulbs</strong> in a row, all switched <strong>off</strong>.
+                Then 100 people walk by, one at a time:
+            </p>
+            <ul>
+                <li><strong>Person 1</strong> flips every bulb (1, 2, 3, … 100).</li>
+                <li><strong>Person 2</strong> flips every 2nd bulb (2, 4, 6, …).</li>
+                <li><strong>Person 3</strong> flips every 3rd bulb (3, 6, 9, …).</li>
+                <li>… and so on, all the way to <strong>Person 100</strong>.</li>
+            </ul>
+            <p>
+                "Flip" means: if a bulb is off, turn it on; if it's on, turn it off.
+                <strong>After everyone has walked by, which bulbs are still on?</strong>
+                Make a guess first — then run it and watch.
+            </p>
+
+            <div class="game-controls">
+                <span class="mode-switch" role="group" aria-label="Mode">
+                    <button id="mode-guided" class="active" onclick="setMode('guided')">Guided</button>
+                    <button id="mode-manual" onclick="setMode('manual')">Free play</button>
+                </span>
+
+                <span id="guided-controls" style="display: contents;">
+                    <button class="game-btn" id="btn-next" onclick="nextPerson()">▶ Next person</button>
+                    <button class="game-btn" id="btn-play" onclick="togglePlay()" disabled
+                            title="Step through the first 8 people yourself to unlock this">⏭ Finish to end</button>
+                    <span class="speed-control">
+                        Slow
+                        <input type="range" id="speed" min="80" max="1200" value="800" step="20"
+                               oninput="updateSpeed()" style="touch-action: manipulation;">
+                        Fast
+                    </span>
+                </span>
+
+                <button class="game-btn secondary" onclick="resetGame()">↺ Reset</button>
+            </div>
+
+            <div class="status" id="status">All 100 bulbs are off. Tap <strong>Next person</strong> to step through them yourself — after 8 people, <strong>Finish to end</strong> unlocks.</div>
+
+            <div class="grid-wrap">
+                <div class="bulb-grid" id="grid" aria-label="100 light bulbs"></div>
+            </div>
+
+            <details class="explain">
+                <summary>Why does this happen? (open after you've explored)</summary>
+                <p>
+                    A bulb ends up <strong>on</strong> only if it is flipped an <strong>odd</strong> number of times.
+                    Bulb number <em>k</em> gets flipped once by each person whose number <em>divides</em> <em>k</em>.
+                    So bulb <em>k</em> is flipped once for every <strong>divisor</strong> of <em>k</em>.
+                </p>
+                <p>
+                    Divisors normally come in pairs (for 12: 1×12, 2×6, 3×4 → six divisors, even → off).
+                    The <strong>only</strong> numbers with an <em>odd</em> number of divisors are
+                    <strong>perfect squares</strong>, because one divisor pairs with itself (for 16: 1×16, 2×8, <em>4×4</em> → five divisors).
+                </p>
+                <p>
+                    So the survivors are exactly the perfect squares up to 100:
+                </p>
+                <p class="squares">1, 4, 9, 16, 25, 36, 49, 64, 81, 100</p>
+                <p>
+                    That's 1², 2², 3², … 10² — exactly <strong>10</strong> bulbs left glowing.
+                </p>
+            </details>
+        </section>
+
+        <section>
+            <p><a href="../../index.html">← Back to Home</a> &nbsp;·&nbsp; <a href="../index.html">All Past Sessions</a></p>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2026 Pause and Ponder</p>
+    </footer>
+
+    <script src="../../script.js"></script>
+    <script>
+        const N = 100;
+        const UNLOCK_AT = 8; // "Finish to end" stays grayed until this many people have gone
+        let state = new Array(N).fill(false); // false = off
+        let currentPerson = 0;                // 0 = nobody has gone yet
+        let mode = 'guided';
+        let playTimer = null;
+
+        // Slider reads left = slow, right = fast. Convert to a delay in ms.
+        function getInterval() {
+            const v = +document.getElementById('speed').value; // 80..1200
+            return (80 + 1200) - v; // invert: high value -> short delay (fast)
+        }
+
+        function updateFinishLock() {
+            const btn = document.getElementById('btn-play');
+            btn.disabled = (currentPerson < UNLOCK_AT) || (currentPerson >= N);
+        }
+
+        const grid = document.getElementById('grid');
+        const statusEl = document.getElementById('status');
+        const bulbs = [];
+
+        // Build the grid once
+        for (let i = 1; i <= N; i++) {
+            const b = document.createElement('button');
+            b.className = 'bulb';
+            b.textContent = i;
+            b.setAttribute('aria-label', 'Bulb ' + i + ', off');
+            b.dataset.n = i;
+            b.addEventListener('click', () => onBulbClick(i));
+            grid.appendChild(b);
+            bulbs.push(b);
+        }
+
+        function onBulbClick(i) {
+            if (mode !== 'manual') return; // bulbs are tap-to-toggle only in free play
+            state[i - 1] = !state[i - 1];
+            paintBulb(i);
+            updateStatus();
+        }
+
+        function paintBulb(i) {
+            const b = bulbs[i - 1];
+            const on = state[i - 1];
+            b.classList.toggle('on', on);
+            b.classList.remove('survivor');
+            b.setAttribute('aria-label', 'Bulb ' + i + (on ? ', on' : ', off'));
+        }
+
+        function clearFlipping() {
+            bulbs.forEach(b => b.classList.remove('flipping'));
+        }
+
+        function countOn() {
+            return state.reduce((s, v) => s + (v ? 1 : 0), 0);
+        }
+
+        function nextPerson() {
+            if (mode !== 'guided') return;
+            if (currentPerson >= N) { finish(); return; }
+            clearFlipping();
+            currentPerson++;
+            const p = currentPerson;
+            const touched = [];
+            for (let k = p; k <= N; k += p) {
+                state[k - 1] = !state[k - 1];
+                paintBulb(k);
+                bulbs[k - 1].classList.add('flipping');
+                touched.push(k);
+            }
+            const list = touched.join(', ');
+            let msg = '<strong>Person ' + p + '</strong> flips ' +
+                touched.length + ' bulb' + (touched.length === 1 ? '' : 's') +
+                ': ' + list + '. &nbsp; <span class="count">' + countOn() + '</span> bulbs on.';
+            if (p < UNLOCK_AT) {
+                msg += ' &nbsp;<em>(' + (UNLOCK_AT - p) + ' more to unlock "Finish to end")</em>';
+            } else if (p === UNLOCK_AT) {
+                msg += ' &nbsp;<em>✅ "Finish to end" unlocked!</em>';
+            }
+            statusEl.innerHTML = msg;
+
+            updateFinishLock();
+
+            if (currentPerson >= N) {
+                stopPlay();
+                finish();
+            }
+        }
+
+        function finish() {
+            clearFlipping();
+            const survivors = [];
+            for (let i = 1; i <= N; i++) {
+                if (state[i - 1]) {
+                    bulbs[i - 1].classList.add('survivor');
+                    survivors.push(i);
+                }
+            }
+            statusEl.innerHTML = '🎉 All 100 people have walked by! ' +
+                '<span class="count">' + survivors.length + '</span> bulbs are still on: <strong>' +
+                survivors.join(', ') + '</strong>. Notice anything special about those numbers?';
+            document.getElementById('btn-next').disabled = true;
+            document.getElementById('btn-play').disabled = true;
+        }
+
+        function togglePlay() {
+            if (playTimer) { stopPlay(); return; }
+            if (currentPerson < UNLOCK_AT || currentPerson >= N) return;
+            const btn = document.getElementById('btn-play');
+            btn.disabled = false; // keep clickable so it can pause
+            btn.textContent = '⏸ Pause';
+            document.getElementById('btn-next').disabled = true;
+            playTimer = setInterval(() => {
+                nextPerson();
+                if (currentPerson >= N) stopPlay();
+            }, getInterval());
+        }
+
+        function stopPlay() {
+            if (playTimer) { clearInterval(playTimer); playTimer = null; }
+            document.getElementById('btn-play').textContent = '⏭ Finish to end';
+            document.getElementById('btn-next').disabled = (currentPerson >= N);
+            updateFinishLock();
+        }
+
+        function updateSpeed() {
+            if (playTimer) { stopPlay(); togglePlay(); } // restart with new speed
+        }
+
+        function resetGame() {
+            stopPlay();
+            state = new Array(N).fill(false);
+            currentPerson = 0;
+            clearFlipping();
+            for (let i = 1; i <= N; i++) {
+                bulbs[i - 1].classList.remove('on', 'survivor');
+                bulbs[i - 1].setAttribute('aria-label', 'Bulb ' + i + ', off');
+            }
+            document.getElementById('btn-next').disabled = false;
+            updateFinishLock();
+            if (mode === 'guided') {
+                statusEl.innerHTML = 'All 100 bulbs are off. Tap <strong>Next person</strong> to step through them yourself — after ' + UNLOCK_AT + ' people, <strong>Finish to end</strong> unlocks.';
+            } else {
+                statusEl.innerHTML = 'Free play: tap any bulb to switch it on or off. <span class="count">0</span> bulbs on.';
+            }
+        }
+
+        function updateStatus() {
+            if (mode === 'manual') {
+                statusEl.innerHTML = 'Free play: tap any bulb to switch it on or off. <span class="count">' +
+                    countOn() + '</span> bulbs on.';
+            }
+        }
+
+        function setMode(m) {
+            if (m === mode) return;
+            mode = m;
+            document.getElementById('mode-guided').classList.toggle('active', m === 'guided');
+            document.getElementById('mode-manual').classList.toggle('active', m === 'manual');
+            document.getElementById('guided-controls').style.display = (m === 'guided') ? 'contents' : 'none';
+            resetGame();
+        }
+    </script>
+</body>
+</html>
