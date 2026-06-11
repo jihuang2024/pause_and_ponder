@@ -97,57 +97,29 @@
         }
 
         .bulb {
-            position: relative;
-            isolation: isolate;                /* contain the glass (::before) behind the number */
-            aspect-ratio: 1 / 1.22;            /* a little taller to fit the screw base */
+            aspect-ratio: 1 / 1;
             border: none;
-            background: transparent;           /* the glass envelope is drawn by ::before */
+            border-radius: 50%;
+            background: var(--bg-primary);
+            box-shadow: inset 0 0 0 2px var(--border-color);
             color: var(--text-secondary);
-            font-size: clamp(0.5rem, 1.2vw, 1rem);
+            font-size: clamp(0.55rem, 1.3vw, 1rem);
             font-weight: 700;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 0 0 20% 0;                /* lift the number up into the glass */
-            transition: color 0.15s ease, filter 0.15s ease;
+            padding: 0;
+            transition: background 0.15s ease, box-shadow 0.15s ease, color 0.15s ease, filter 0.15s ease;
             -webkit-user-select: none;
             user-select: none;
             touch-action: manipulation;
         }
 
-        /* the glass envelope */
-        .bulb::before {
-            content: "";
-            position: absolute;
-            left: 0; right: 0; top: 0;
-            height: 80%;
-            z-index: -1;
-            background: var(--bg-primary);
-            box-shadow: inset 0 0 0 2px var(--border-color);
-            border-radius: 50% 50% 46% 46% / 58% 58% 42% 42%;
-            transition: background 0.15s ease, box-shadow 0.15s ease;
-        }
-
-        /* the metal screw base */
-        .bulb::after {
-            content: "";
-            position: absolute;
-            bottom: 3%;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 30%;
-            height: 15%;
-            background: linear-gradient(#d2d2d2 0%, #969696 100%);
-            border-radius: 2px 2px 3px 3px;
-            box-shadow: inset 0 2px 0 -1px rgba(255, 255, 255, 0.55),
-                        inset 0 -2px 0 -1px rgba(0, 0, 0, 0.28);
-        }
-
-        .bulb.on { color: #6b4a00; }
-        .bulb.on::before {
-            background: radial-gradient(circle at 38% 28%, #fff6c2 0%, #ffd34d 55%, #f5a623 100%);
-            box-shadow: inset 0 0 0 2px #f5a623, 0 0 12px 3px rgba(245, 166, 35, 0.65);
+        .bulb.on {
+            background: radial-gradient(circle at 35% 30%, #fff6c2 0%, #ffd34d 55%, #f5a623 100%);
+            box-shadow: inset 0 0 0 2px #f5a623, 0 0 10px 2px rgba(245, 166, 35, 0.6);
+            color: #6b4a00;
         }
 
         .bulb.flipping {
@@ -160,10 +132,23 @@
             filter: drop-shadow(0 0 2px var(--link-color)) drop-shadow(0 0 4px var(--link-color));
         }
 
-        .bulb.survivor { color: #064d06; animation: pop 0.4s ease; }
-        .bulb.survivor::before {
-            background: radial-gradient(circle at 38% 28%, #d6ffd6 0%, #7be07b 55%, #2eb82e 100%);
-            box-shadow: inset 0 0 0 2px #2eb82e, 0 0 16px 4px rgba(46, 184, 46, 0.7);
+        .bulb.survivor {
+            background: radial-gradient(circle at 35% 30%, #d6ffd6 0%, #7be07b 55%, #2eb82e 100%);
+            box-shadow: inset 0 0 0 2px #2eb82e, 0 0 14px 3px rgba(46, 184, 46, 0.7);
+            color: #064d06;
+            animation: pop 0.4s ease;
+        }
+
+        /* the robot "Finish" button: sleeps until 8 taps, then wakes and wiggles */
+        #btn-finish {
+            font-size: 1.05rem;
+            min-width: 11rem;
+        }
+        #btn-finish small { font-weight: 500; opacity: 0.9; }
+        #btn-finish.awake { animation: wiggle 0.7s ease-in-out infinite; }
+        @keyframes wiggle {
+            0%, 100% { transform: rotate(-4deg); }
+            50%      { transform: rotate(4deg); }
         }
 
         @keyframes pop {
@@ -238,8 +223,8 @@
                 </span>
 
                 <span id="guided-controls" style="display: contents;">
-                    <button class="game-btn" id="btn-finish" onclick="finishPerson()" disabled
-                            title="Tap this person's bulbs first to unlock">⏭ Finish</button>
+                    <button class="game-btn sleeping" id="btn-finish" onclick="finishPerson()" disabled
+                            title="The robot is asleep — tap this person's bulbs to wake it">🤖 💤</button>
                     <button class="game-btn secondary" id="btn-skip" onclick="skipToResult()">⏩ Skip to the result</button>
                 </span>
 
@@ -286,7 +271,12 @@
     <script src="../../script.js"></script>
     <script>
         const N = 100;
-        const UNLOCK_TAPS = 8; // taps on a person's own bulbs before "Finish" unlocks
+        const UNLOCK_TAPS = 8;  // taps on a person's own bulbs before the robot wakes
+        const FINISH_MS = 500;  // the awake robot flips one bulb every 0.5s
+
+        const ROBOT_SLEEP = '🤖 💤';
+        const ROBOT_AWAKE = '🤖 ⚡ Tap me!';
+        const ROBOT_WORK  = '🤖 …working';
 
         let state = new Array(N).fill(false); // false = off
         let mode = 'guided';
@@ -294,6 +284,8 @@
         let flipped = new Set();              // multiples flipped so far this round (bulb numbers)
         let multiples = [];                   // current person's multiples
         let threshold = 0;                    // taps needed this round
+        let animTimer = null;                 // robot's per-bulb timer
+        let animating = false;                // true while the robot is finishing
 
         const grid = document.getElementById('grid');
         const statusEl = document.getElementById('status');
@@ -330,15 +322,37 @@
         }
 
         // ---- guided play: you are each person ----
+        function setRobot(stateName) {
+            const fb = document.getElementById('btn-finish');
+            fb.classList.remove('sleeping', 'awake', 'working');
+            fb.classList.add(stateName);
+            if (stateName === 'sleeping') {
+                fb.disabled = true;
+                fb.innerHTML = ROBOT_SLEEP;
+                fb.title = "The robot is asleep — tap this person's bulbs to wake it";
+            } else if (stateName === 'awake') {
+                fb.disabled = false;
+                fb.innerHTML = ROBOT_AWAKE;
+                fb.title = "Tap the robot to flip the rest of this person's bulbs";
+            } else { // working
+                fb.disabled = true;
+                fb.innerHTML = ROBOT_WORK;
+                fb.title = 'The robot is flipping the rest…';
+            }
+        }
+
+        function cancelAnim() {
+            if (animTimer) { clearTimeout(animTimer); animTimer = null; }
+            animating = false;
+        }
+
         function beginPerson() {
             flipped = new Set();
             multiples = multiplesOf(currentPerson);
             threshold = Math.min(UNLOCK_TAPS, multiples.length);
             clearMarks();
             multiples.forEach(m => bulbs[m - 1].classList.add('target')); // show this person's bulbs
-            const fb = document.getElementById('btn-finish');
-            fb.disabled = true;
-            fb.textContent = '⏭ Finish Person ' + currentPerson;
+            setRobot('sleeping');
             updateGuidedStatus();
         }
 
@@ -371,6 +385,7 @@
                 return;
             }
             // guided mode
+            if (animating) return;                    // robot is busy finishing
             if (currentPerson > N) return;            // game already finished
             if (i % currentPerson !== 0) {            // not one of this person's bulbs
                 updateGuidedStatus('Person ' + currentPerson + ' only flips multiples of ' + currentPerson + '.');
@@ -382,24 +397,46 @@
             paintBulb(i);
             bulbs[i - 1].classList.remove('target');
             bulbs[i - 1].classList.add('flipping');
-            if (flipped.size >= threshold) document.getElementById('btn-finish').disabled = false;
+            if (flipped.size >= threshold && document.getElementById('btn-finish').disabled) setRobot('awake');
             updateGuidedStatus();
         }
 
         function finishPerson() {
-            if (document.getElementById('btn-finish').disabled) return;
-            multiples.forEach(m => {                  // flip whatever the player didn't tap
-                if (!flipped.has(m)) {
-                    state[m - 1] = !state[m - 1];
-                    paintBulb(m);
+            const fb = document.getElementById('btn-finish');
+            if (fb.disabled || animating) return;     // only the awake robot acts
+            const remaining = multiples.filter(m => !flipped.has(m));
+            animating = true;
+            setRobot('working');
+            let idx = 0;
+            (function step() {
+                bulbs.forEach(b => b.classList.remove('flipping')); // single glow moves along
+                if (idx >= remaining.length) {
+                    animTimer = null;
+                    animating = false;
+                    advanceAfterFinish();
+                    return;
                 }
-            });
+                const m = remaining[idx++];
+                state[m - 1] = !state[m - 1];
+                flipped.add(m);                       // keeps a mid-animation Skip correct
+                paintBulb(m);
+                bulbs[m - 1].classList.remove('target');
+                bulbs[m - 1].classList.add('flipping');
+                statusEl.innerHTML = '🤖 Robot is flipping the rest of <strong>Person ' +
+                    currentPerson + '</strong>’s bulbs… <span class="count">' +
+                    idx + ' / ' + remaining.length + '</span>';
+                animTimer = setTimeout(step, FINISH_MS);
+            })();
+        }
+
+        function advanceAfterFinish() {
             currentPerson++;
             if (currentPerson > N) { finishGame(); return; }
             beginPerson();
         }
 
         function skipToResult() {
+            cancelAnim();
             for (let p = currentPerson; p <= N; p++) {
                 multiplesOf(p).forEach(m => {
                     if (p === currentPerson && flipped.has(m)) return; // already done this round
@@ -412,6 +449,7 @@
         }
 
         function finishGame() {
+            cancelAnim();
             clearMarks();
             const survivors = [];
             for (let i = 1; i <= N; i++) {
@@ -420,7 +458,11 @@
             statusEl.innerHTML = '🎉 All 100 people have walked by! ' +
                 '<span class="count">' + survivors.length + '</span> bulbs are still on: <strong>' +
                 survivors.join(', ') + '</strong>. Notice anything special about those numbers?';
-            document.getElementById('btn-finish').disabled = true;
+            const fb = document.getElementById('btn-finish');
+            fb.classList.remove('sleeping', 'awake', 'working');
+            fb.disabled = true;
+            fb.innerHTML = '🤖 🎉';
+            fb.title = '';
         }
 
         // ---- free play ----
@@ -431,6 +473,7 @@
 
         // ---- shared ----
         function resetGame() {
+            cancelAnim();
             state = new Array(N).fill(false);
             currentPerson = 1;
             flipped = new Set();
