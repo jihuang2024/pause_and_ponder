@@ -155,6 +155,11 @@
             z-index: 1;
         }
 
+        /* bulbs the current person flips — tap these */
+        .bulb.target {
+            filter: drop-shadow(0 0 2px var(--link-color)) drop-shadow(0 0 4px var(--link-color));
+        }
+
         .bulb.survivor { color: #064d06; animation: pop 0.4s ease; }
         .bulb.survivor::before {
             background: radial-gradient(circle at 38% 28%, #d6ffd6 0%, #7be07b 55%, #2eb82e 100%);
@@ -217,8 +222,13 @@
             </ul>
             <p>
                 "Flip" means: if a bulb is off, turn it on; if it's on, turn it off.
-                <strong>After everyone has walked by, which bulbs are still on?</strong>
-                Make a guess first — then run it and watch.
+                <strong>After everyone has walked by, which bulbs are still on?</strong> Make a guess first!
+            </p>
+            <p>
+                In <strong>Guided</strong> mode you <em>become each person</em>: tap the highlighted bulbs that
+                person flips. After 8 taps, press <strong>Finish</strong> to flip the rest of their bulbs and the
+                next person steps up. (Use <strong>Skip to the result</strong> to jump to the end, or
+                <strong>Free play</strong> to tap any bulb freely.)
             </p>
 
             <div class="game-controls">
@@ -228,21 +238,15 @@
                 </span>
 
                 <span id="guided-controls" style="display: contents;">
-                    <button class="game-btn" id="btn-next" onclick="nextPerson()">▶ Next person</button>
-                    <button class="game-btn" id="btn-play" onclick="togglePlay()" disabled
-                            title="Step through the first 8 people yourself to unlock this">⏭ Finish to end</button>
-                    <span class="speed-control">
-                        Slow
-                        <input type="range" id="speed" min="80" max="1200" value="800" step="20"
-                               oninput="updateSpeed()" style="touch-action: manipulation;">
-                        Fast
-                    </span>
+                    <button class="game-btn" id="btn-finish" onclick="finishPerson()" disabled
+                            title="Tap this person's bulbs first to unlock">⏭ Finish</button>
+                    <button class="game-btn secondary" id="btn-skip" onclick="skipToResult()">⏩ Skip to the result</button>
                 </span>
 
                 <button class="game-btn secondary" onclick="resetGame()">↺ Reset</button>
             </div>
 
-            <div class="status" id="status">All 100 bulbs are off. Tap <strong>Next person</strong> to step through them yourself — after 8 people, <strong>Finish to end</strong> unlocks.</div>
+            <div class="status" id="status">Loading…</div>
 
             <div class="grid-wrap">
                 <div class="bulb-grid" id="grid" aria-label="100 light bulbs"></div>
@@ -282,22 +286,14 @@
     <script src="../../script.js"></script>
     <script>
         const N = 100;
-        const UNLOCK_AT = 8; // "Finish to end" stays grayed until this many people have gone
+        const UNLOCK_TAPS = 8; // taps on a person's own bulbs before "Finish" unlocks
+
         let state = new Array(N).fill(false); // false = off
-        let currentPerson = 0;                // 0 = nobody has gone yet
         let mode = 'guided';
-        let playTimer = null;
-
-        // Slider reads left = slow, right = fast. Convert to a delay in ms.
-        function getInterval() {
-            const v = +document.getElementById('speed').value; // 80..1200
-            return (80 + 1200) - v; // invert: high value -> short delay (fast)
-        }
-
-        function updateFinishLock() {
-            const btn = document.getElementById('btn-play');
-            btn.disabled = (currentPerson < UNLOCK_AT) || (currentPerson >= N);
-        }
+        let currentPerson = 1;                // the person currently being played
+        let flipped = new Set();              // multiples flipped so far this round (bulb numbers)
+        let multiples = [];                   // current person's multiples
+        let threshold = 0;                    // taps needed this round
 
         const grid = document.getElementById('grid');
         const statusEl = document.getElementById('status');
@@ -309,130 +305,139 @@
             b.className = 'bulb';
             b.textContent = i;
             b.setAttribute('aria-label', 'Bulb ' + i + ', off');
-            b.dataset.n = i;
             b.addEventListener('click', () => onBulbClick(i));
             grid.appendChild(b);
             bulbs.push(b);
         }
 
-        function onBulbClick(i) {
-            // Tapping a bulb always toggles it — in Guided or Free play.
-            state[i - 1] = !state[i - 1];
-            paintBulb(i);
-            updateStatus();
+        // ---- helpers ----
+        function multiplesOf(p) {
+            const a = [];
+            for (let k = p; k <= N; k += p) a.push(k);
+            return a;
         }
-
+        function countOn() { return state.reduce((s, v) => s + (v ? 1 : 0), 0); }
+        function ordinal(n) {
+            const s = ['th', 'st', 'nd', 'rd'], v = n % 100;
+            return n + (s[(v - 20) % 10] || s[v] || s[0]);
+        }
         function paintBulb(i) {
-            const b = bulbs[i - 1];
-            const on = state[i - 1];
-            b.classList.toggle('on', on);
-            b.classList.remove('survivor');
-            b.setAttribute('aria-label', 'Bulb ' + i + (on ? ', on' : ', off'));
+            bulbs[i - 1].classList.toggle('on', state[i - 1]);
+            bulbs[i - 1].setAttribute('aria-label', 'Bulb ' + i + (state[i - 1] ? ', on' : ', off'));
+        }
+        function clearMarks() {
+            bulbs.forEach(b => b.classList.remove('target', 'flipping', 'survivor'));
         }
 
-        function clearFlipping() {
-            bulbs.forEach(b => b.classList.remove('flipping'));
+        // ---- guided play: you are each person ----
+        function beginPerson() {
+            flipped = new Set();
+            multiples = multiplesOf(currentPerson);
+            threshold = Math.min(UNLOCK_TAPS, multiples.length);
+            clearMarks();
+            multiples.forEach(m => bulbs[m - 1].classList.add('target')); // show this person's bulbs
+            const fb = document.getElementById('btn-finish');
+            fb.disabled = true;
+            fb.textContent = '⏭ Finish Person ' + currentPerson;
+            updateGuidedStatus();
         }
 
-        function countOn() {
-            return state.reduce((s, v) => s + (v ? 1 : 0), 0);
+        function personFlips() {
+            return currentPerson === 1
+                ? 'flips <strong>every</strong> bulb'
+                : 'flips every ' + ordinal(currentPerson) + ' bulb';
+        }
+        function previewList() {
+            return multiples.slice(0, 6).join(', ') + (multiples.length > 6 ? ', …' : '');
         }
 
-        function nextPerson() {
-            if (mode !== 'guided') return;
-            if (currentPerson >= N) { finish(); return; }
-            clearFlipping();
-            currentPerson++;
-            const p = currentPerson;
-            const touched = [];
-            for (let k = p; k <= N; k += p) {
-                state[k - 1] = !state[k - 1];
-                paintBulb(k);
-                bulbs[k - 1].classList.add('flipping');
-                touched.push(k);
+        function updateGuidedStatus(hint) {
+            let msg = '<strong>Person ' + currentPerson + '</strong> ' + personFlips() +
+                ': ' + previewList() + '. Tap the highlighted bulbs.';
+            if (flipped.size < threshold) {
+                msg += ' &nbsp;<span class="count">Tapped ' + flipped.size + ' / ' + threshold + '</span>';
+            } else {
+                msg += ' &nbsp;<em>✅ Now press "Finish Person ' + currentPerson + '" to flip the rest.</em>';
             }
-            const list = touched.join(', ');
-            let msg = '<strong>Person ' + p + '</strong> flips ' +
-                touched.length + ' bulb' + (touched.length === 1 ? '' : 's') +
-                ': ' + list + '. &nbsp; <span class="count">' + countOn() + '</span> bulbs on.';
-            if (p < UNLOCK_AT) {
-                msg += ' &nbsp;<em>(' + (UNLOCK_AT - p) + ' more to unlock "Finish to end")</em>';
-            } else if (p === UNLOCK_AT) {
-                msg += ' &nbsp;<em>✅ "Finish to end" unlocked!</em>';
-            }
+            if (hint) msg += ' &nbsp;<em style="color:var(--link-hover)">' + hint + '</em>';
             statusEl.innerHTML = msg;
-
-            updateFinishLock();
-
-            if (currentPerson >= N) {
-                stopPlay();
-                finish();
-            }
         }
 
-        function finish() {
-            clearFlipping();
+        function onBulbClick(i) {
+            if (mode === 'manual') {
+                state[i - 1] = !state[i - 1];
+                paintBulb(i);
+                updateManualStatus();
+                return;
+            }
+            // guided mode
+            if (currentPerson > N) return;            // game already finished
+            if (i % currentPerson !== 0) {            // not one of this person's bulbs
+                updateGuidedStatus('Person ' + currentPerson + ' only flips multiples of ' + currentPerson + '.');
+                return;
+            }
+            if (flipped.has(i)) return;               // already flipped this round
+            state[i - 1] = !state[i - 1];
+            flipped.add(i);
+            paintBulb(i);
+            bulbs[i - 1].classList.remove('target');
+            bulbs[i - 1].classList.add('flipping');
+            if (flipped.size >= threshold) document.getElementById('btn-finish').disabled = false;
+            updateGuidedStatus();
+        }
+
+        function finishPerson() {
+            if (document.getElementById('btn-finish').disabled) return;
+            multiples.forEach(m => {                  // flip whatever the player didn't tap
+                if (!flipped.has(m)) {
+                    state[m - 1] = !state[m - 1];
+                    paintBulb(m);
+                }
+            });
+            currentPerson++;
+            if (currentPerson > N) { finishGame(); return; }
+            beginPerson();
+        }
+
+        function skipToResult() {
+            for (let p = currentPerson; p <= N; p++) {
+                multiplesOf(p).forEach(m => {
+                    if (p === currentPerson && flipped.has(m)) return; // already done this round
+                    state[m - 1] = !state[m - 1];
+                });
+            }
+            currentPerson = N + 1;
+            for (let i = 1; i <= N; i++) paintBulb(i);
+            finishGame();
+        }
+
+        function finishGame() {
+            clearMarks();
             const survivors = [];
             for (let i = 1; i <= N; i++) {
-                if (state[i - 1]) {
-                    bulbs[i - 1].classList.add('survivor');
-                    survivors.push(i);
-                }
+                if (state[i - 1]) { bulbs[i - 1].classList.add('survivor'); survivors.push(i); }
             }
             statusEl.innerHTML = '🎉 All 100 people have walked by! ' +
                 '<span class="count">' + survivors.length + '</span> bulbs are still on: <strong>' +
                 survivors.join(', ') + '</strong>. Notice anything special about those numbers?';
-            document.getElementById('btn-next').disabled = true;
-            document.getElementById('btn-play').disabled = true;
+            document.getElementById('btn-finish').disabled = true;
         }
 
-        function togglePlay() {
-            if (playTimer) { stopPlay(); return; }
-            if (currentPerson < UNLOCK_AT || currentPerson >= N) return;
-            const btn = document.getElementById('btn-play');
-            btn.disabled = false; // keep clickable so it can pause
-            btn.textContent = '⏸ Pause';
-            document.getElementById('btn-next').disabled = true;
-            playTimer = setInterval(() => {
-                nextPerson();
-                if (currentPerson >= N) stopPlay();
-            }, getInterval());
+        // ---- free play ----
+        function updateManualStatus() {
+            statusEl.innerHTML = 'Free play: tap any bulb to switch it on or off. <span class="count">' +
+                countOn() + '</span> bulbs on.';
         }
 
-        function stopPlay() {
-            if (playTimer) { clearInterval(playTimer); playTimer = null; }
-            document.getElementById('btn-play').textContent = '⏭ Finish to end';
-            document.getElementById('btn-next').disabled = (currentPerson >= N);
-            updateFinishLock();
-        }
-
-        function updateSpeed() {
-            if (playTimer) { stopPlay(); togglePlay(); } // restart with new speed
-        }
-
+        // ---- shared ----
         function resetGame() {
-            stopPlay();
             state = new Array(N).fill(false);
-            currentPerson = 0;
-            clearFlipping();
-            for (let i = 1; i <= N; i++) {
-                bulbs[i - 1].classList.remove('on', 'survivor');
-                bulbs[i - 1].setAttribute('aria-label', 'Bulb ' + i + ', off');
-            }
-            document.getElementById('btn-next').disabled = false;
-            updateFinishLock();
-            if (mode === 'guided') {
-                statusEl.innerHTML = 'All 100 bulbs are off. Tap <strong>Next person</strong> to step through them yourself — after ' + UNLOCK_AT + ' people, <strong>Finish to end</strong> unlocks.';
-            } else {
-                statusEl.innerHTML = 'Free play: tap any bulb to switch it on or off. <span class="count">0</span> bulbs on.';
-            }
-        }
-
-        function updateStatus() {
-            if (mode === 'manual') {
-                statusEl.innerHTML = 'Free play: tap any bulb to switch it on or off. <span class="count">' +
-                    countOn() + '</span> bulbs on.';
-            }
+            currentPerson = 1;
+            flipped = new Set();
+            clearMarks();
+            for (let i = 1; i <= N; i++) paintBulb(i);
+            if (mode === 'guided') beginPerson();
+            else updateManualStatus();
         }
 
         function setMode(m) {
@@ -443,6 +448,8 @@
             document.getElementById('guided-controls').style.display = (m === 'guided') ? 'contents' : 'none';
             resetGame();
         }
+
+        resetGame(); // start on Person 1
     </script>
 </body>
 </html>
