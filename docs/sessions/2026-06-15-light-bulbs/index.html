@@ -185,6 +185,10 @@
 
         details.explain[open] summary { margin-bottom: 0.8rem; }
 
+        details.explain.parent-note { border-left: 4px solid var(--link-color); }
+        details.explain.parent-note ul { margin: 0.5rem 0 1rem 1.3rem; line-height: 1.7; }
+        details.explain.parent-note li { margin-bottom: 0.6rem; }
+
         .squares { font-family: monospace; font-weight: 700; color: var(--link-hover); }
 
         @media (max-width: 768px) {
@@ -265,6 +269,20 @@
                 <p class="squares">1, 4, 9, 16, 25, 36, 49, 64, 81, 100</p>
                 <p>
                     That's 1², 2², 3², … 10² — exactly <strong>10</strong> bulbs left glowing.
+                </p>
+            </details>
+
+            <details class="explain parent-note">
+                <summary>For parents — why this matters</summary>
+                <p>Under the tapping, a child is meeting real math — and, we hope, a little wonder:</p>
+                <ul>
+                    <li><strong>Factors &amp; multiples</strong> — tapping 3, 6, 9, … is times-tables as play.</li>
+                    <li><strong>Even &amp; odd</strong> — a bulb stays on only if it's flipped an <em>odd</em> number of times.</li>
+                    <li><strong>The "wow"</strong> — the survivors are the perfect squares (1, 4, 9, 16, …): a clean pattern hiding in a messy process.</li>
+                </ul>
+                <p>
+                    Wonder together: <em>which bulbs will stay lit — and why does 12 go off but 16 stay on?</em>
+                    Let the question sit. More: <a href="../../pages/parent-notes.html">For Parents</a>.
                 </p>
             </details>
         </section>
