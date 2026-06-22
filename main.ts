@@ -2,7 +2,7 @@ const kv = await Deno.openKv();
 
 // ── Crypto ───────────────────────────────────────────────────────────────────
 
-async function hashPw(password: string, salt: Uint8Array): Promise<string> {
+async function hashPw(password: string, salt: Uint8Array<ArrayBuffer>): Promise<string> {
   const key = await crypto.subtle.importKey(
     "raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveBits"],
   );
@@ -16,7 +16,7 @@ function toHex(b: Uint8Array): string {
   return [...b].map(x => x.toString(16).padStart(2, "0")).join("");
 }
 
-function fromHex(h: string): Uint8Array {
+function fromHex(h: string): Uint8Array<ArrayBuffer> {
   return new Uint8Array(h.match(/.{2}/g)!.map(x => parseInt(x, 16)));
 }
 
