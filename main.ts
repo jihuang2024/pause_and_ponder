@@ -329,5 +329,17 @@ Deno.serve(async (req) => {
     });
   }
 
+  // Diagnostic: test KV availability
+  if (path === "/kv-test") {
+    try {
+      const kv = await getKv();
+      await kv.set(["ping"], "ok");
+      const val = await kv.get(["ping"]);
+      return new Response(`KV ok: ${val.value}`, { status: 200 });
+    } catch (e) {
+      return new Response(`KV error: ${e}`, { status: 500 });
+    }
+  }
+
   return new Response("Not found", { status: 404 });
 });
