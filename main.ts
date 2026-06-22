@@ -1,3 +1,3 @@
 Deno.serve(() => new Response("Hi from Pause & Ponder! ☀", {
-  headers: { "content-type": "text/plain" },
+  headers: { "content-type": "text/plain; charset=utf-8" },
 }));
